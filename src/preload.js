@@ -20,4 +20,6 @@ contextBridge.exposeInMainWorld('api', {
   confirmGiftAid: call('giftaid:confirm'),
   cancelGiftAid: call('giftaid:cancel'),
   createDonation: call('donations:create'),
+  printReceipt: call('receipts:print'),
+  lastReceipt: call('receipts:last'),
 });

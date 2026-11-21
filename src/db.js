@@ -86,6 +86,31 @@ const MIGRATIONS = [
   ALTER TABLE donations ADD COLUMN gift_aid      INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE donations ADD COLUMN ga_claimed_on TEXT;     -- set once included in an HMRC claim
   `,
+  // v3: Receipts. The receipt number IS the id: sequential and never reused.
+  // A receipt keeps a copy of what was printed, so a reprint is identical
+  // even if the donor or settings are edited later. (If a donor is erased,
+  // their name and email are wiped from their receipts too.)
+  `
+  CREATE TABLE receipts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    donation_id     INTEGER NOT NULL UNIQUE,
+    method          TEXT NOT NULL,             -- 'print' or 'email'
+    donor_name      TEXT,
+    amount_pence    INTEGER NOT NULL,
+    donation_date   TEXT NOT NULL,
+    gift_aid        INTEGER NOT NULL DEFAULT 0,
+    ga_declared_on  TEXT,
+    org_json        TEXT NOT NULL,             -- organisation details at the time
+    email_to        TEXT,
+    email_status    TEXT,                      -- 'pending', 'sent', 'failed' (email only)
+    email_error     TEXT,
+    email_attempts  INTEGER NOT NULL DEFAULT 0,
+    sent_at         TEXT,
+    print_count     INTEGER NOT NULL DEFAULT 0,
+    created_by      INTEGER,
+    created_at      TEXT NOT NULL
+  );
+  `,
 ];
 
 // Older databases (made by version 0.1.0) already have the v1 tables but no
@@ -178,13 +203,20 @@ const DEFAULT_SETTINGS = {
     'the past 4 years and until further notice. I confirm I am a UK taxpayer and understand that if I pay ' +
     'less Income Tax and/or Capital Gains Tax than the amount of Gift Aid claimed on all my donations in ' +
     'that tax year, it is my responsibility to pay any difference.',
+  org_address: '',        // shown on receipts; one line per row
+  org_phone: '',
+  org_email: '',
+  receipt_footer: 'Thank you for your generous donation.',
+  print_silent: '0',      // '1' = print straight to the default printer, no dialog
 };
 const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS);
 
 function saveSettings(values, userId) {
   const clean = {};
   for (const k of SETTING_KEYS) clean[k] = String(values[k] ?? '').trim();
+  clean.print_silent = clean.print_silent === '1' ? '1' : '0';
   if (!clean.org_name) throw new Error('Please enter the organisation name.');
+  if (clean.org_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean.org_email)) throw new Error('The organisation email doesn\'t look right.');
   if (clean.charity_number && !/^\d{6,8}(-\d+)?$/.test(clean.charity_number)) {
     throw new Error('Charity number should be 6–8 digits, e.g. 1045088.');
   }
@@ -347,6 +379,8 @@ function updateDonorField(id, field, value, userId) {
 // (for the accounts) but are no longer linked to anyone.
 function eraseDonor(id, userId) {
   return transaction(() => {
+    run(`UPDATE receipts SET donor_name = 'Deleted donor', email_to = NULL
+         WHERE donation_id IN (SELECT id FROM donations WHERE donor_id = ?)`, [id]);
     run('UPDATE donations SET donor_id = NULL WHERE donor_id = ?', [id]);
     run('DELETE FROM donors WHERE id = ?', [id]);
     audit(userId, 'donor.erase', { id });
@@ -390,9 +424,13 @@ function parseAmount(amount) {
   if (total > 10000000) throw new Error('That amount looks too large (over £100,000).');
   return total;
 }
-function createDonation({ donorId, amount, date, note, giftAid }, userId) {
+const RECEIPT_METHODS = ['print', 'email', 'none'];
+
+function createDonation({ donorId, amount, date, note, giftAid, receipt }, userId) {
   const donor = getDonor(donorId);
   if (!donor) throw new Error('Please choose a donor.');
+  if (!RECEIPT_METHODS.includes(receipt)) throw new Error('Please choose a receipt type.');
+  if (receipt === 'email' && !donor.email) throw new Error('This donor has no email address saved.');
   const pence = parseAmount(amount);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) throw new Error('Please choose a date.');
   if (date > today()) throw new Error('The date can\'t be in the future.');
@@ -404,7 +442,51 @@ function createDonation({ donorId, amount, date, note, giftAid }, userId) {
         [donorId, pence, date, String(note || '').trim() || null, giftAid ? 1 : 0, userId, now()]);
     const id = lastId();
     audit(userId, 'donation.create', { id, donorId, pence, giftAid });
-    return { donation: get('SELECT * FROM donations WHERE id = ?', [id]), donor: getDonor(donorId) };
+    const receiptId = receipt === 'none' ? null : createReceiptInner(id, receipt, userId);
+    return {
+      donation: get('SELECT * FROM donations WHERE id = ?', [id]),
+      donor: getDonor(donorId),
+      receipt: receiptId ? getReceipt(receiptId) : null,
+    };
+  });
+}
+
+// ---------- receipts ----------
+function createReceiptInner(donationId, method, userId) {
+  const n = get(`SELECT n.*, d.salutation, d.first_name, d.surname, d.email, d.ga_declared_on
+                 FROM donations n LEFT JOIN donors d ON d.id = n.donor_id WHERE n.id = ?`, [donationId]);
+  if (!n) throw new Error('Donation not found.');
+  if (n.voided_at) throw new Error('This donation has been voided.');
+  const s = getSettings();
+  const org = {
+    name: s.org_name, charity_number: s.charity_number, address: s.org_address,
+    phone: s.org_phone, email: s.org_email, footer: s.receipt_footer,
+  };
+  const name = n.donor_id ? [n.salutation, n.first_name, n.surname].filter(Boolean).join(' ') : 'Deleted donor';
+  run(`INSERT INTO receipts (donation_id, method, donor_name, amount_pence, donation_date, gift_aid,
+         ga_declared_on, org_json, email_to, email_status, created_by, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [
+    donationId, method, name, n.amount_pence, n.date, n.gift_aid,
+    n.gift_aid ? n.ga_declared_on : null, JSON.stringify(org),
+    method === 'email' ? n.email : null, method === 'email' ? 'pending' : null, userId, now(),
+  ]);
+  const id = lastId();
+  audit(userId, 'receipt.create', { id, donationId, method });
+  return id;
+}
+function getReceipt(id) {
+  const r = get('SELECT * FROM receipts WHERE id = ?', [id]);
+  if (r) r.org = JSON.parse(r.org_json);
+  return r;
+}
+function lastReceipts(limit = 1) {
+  return all('SELECT id FROM receipts ORDER BY id DESC LIMIT ?', [limit]).map((r) => getReceipt(r.id));
+}
+function markPrinted(id, userId) {
+  return transaction(() => {
+    run('UPDATE receipts SET print_count = print_count + 1 WHERE id = ?', [id]);
+    audit(userId, 'receipt.print', { id });
+    return getReceipt(id);
   });
 }
 
@@ -413,5 +495,5 @@ module.exports = {
   hasUsers, listUsers, createUser, checkLogin,
   listDonors, getDonor, findDuplicates, createDonor, updateDonorField, eraseDonor,
   recordDeclaration, confirmTaxpayer, cancelDeclaration,
-  parseAmount, createDonation,
+  parseAmount, createDonation, getReceipt, lastReceipts, markPrinted,
 };

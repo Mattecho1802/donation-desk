@@ -104,10 +104,24 @@
             </div>
           </section>
 
+          <section class="card desk-step" id="step-receipt">
+            <h2><span class="num">4</span> Receipt</h2>
+            <div class="receipt-buttons">
+              <button class="big" data-receipt="print">🖨 Print</button>
+              <button class="big" data-receipt="email">✉ Email</button>
+              <button class="big" data-receipt="none">No receipt</button>
+            </div>
+            <p class="muted small" id="receipt-note"></p>
+          </section>
+
           <section class="desk-save">
-            <div id="desk-summary" class="muted"></div>
-            <p class="error" id="desk-error"></p>
-            <button id="save-donation" class="big primary huge">Save donation</button>
+            <div id="last-receipt" class="last-receipt" hidden></div>
+            <span class="spacer"></span>
+            <div class="save-right">
+              <div id="desk-summary" class="muted"></div>
+              <p class="error" id="desk-error"></p>
+              <button id="save-donation" class="big primary huge">Save donation</button>
+            </div>
           </section>
         </div>
       </div>
@@ -125,6 +139,19 @@
           <label>Gift Aid declaration (staff read this to the donor, word for word)
             <textarea name="ga_declaration" rows="9"></textarea>
           </label>
+          <h3>Receipts</h3>
+          <label>Address (one line per row)
+            <textarea name="org_address" rows="4" placeholder="e.g.&#10;Gurdwara Street&#10;Telford&#10;TF1 1AA"></textarea>
+          </label>
+          <div class="row">
+            <label class="grow">Phone <input name="org_phone" autocomplete="off"></label>
+            <label class="grow">Email <input name="org_email" type="email" autocomplete="off"></label>
+          </div>
+          <label>Thank-you message at the bottom of receipts
+            <input name="receipt_footer" autocomplete="off">
+          </label>
+          <label class="check"><input type="checkbox" name="print_silent" value="1">
+            Print receipts straight to the default printer (no print dialog)</label>
           <p class="error" data-error></p>
           <div class="buttons">
             <button type="submit" class="primary">Save settings</button>

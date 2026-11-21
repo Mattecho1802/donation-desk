@@ -132,3 +132,12 @@ textarea { resize: vertical; line-height: 1.45; }
 dialog { max-height: 92vh; overflow-x: hidden; }
 dialog input, dialog select, dialog textarea { min-width: 0; width: 100%; }
 dialog label.check input { width: 20px; flex: none; }
+
+/* ---------- receipt (step 4 on the desk) ---------- */
+#step-donor { grid-row: auto; }
+.receipt-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.receipt-buttons button.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+.desk-save { display: flex; align-items: end; gap: 16px; }
+.save-right { display: grid; gap: 6px; justify-items: end; }
+.last-receipt { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: flex; gap: 12px; align-items: center; }
+.settings h3 { margin: 10px 0 0; font-size: 1.05rem; border-top: 1px solid var(--border); padding-top: 14px; }

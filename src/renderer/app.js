@@ -105,6 +105,7 @@ function enterApp() {
   if (!donorTable) buildDonorTable();
   loadDonors();
   resetDesk();
+  call(window.api.lastReceipt).then(showLastReceipt).catch(() => {});
 }
 
 // ---------- tabs ----------
@@ -240,13 +241,18 @@ function gaWording() {
 // ---------- settings tab ----------
 const settingsForm = $('#settings-form');
 function fillSettingsForm() {
-  for (const k of ['org_name', 'charity_number', 'ga_declaration']) settingsForm.elements[k].value = state.settings[k] || '';
+  for (const k of ['org_name', 'charity_number', 'ga_declaration', 'org_address', 'org_phone', 'org_email', 'receipt_footer']) {
+    settingsForm.elements[k].value = state.settings[k] || '';
+  }
+  settingsForm.elements.print_silent.checked = state.settings.print_silent === '1';
   $('[data-error]', settingsForm).textContent = '';
 }
 settingsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
-    await call(window.api.saveSettings, formData(settingsForm));
+    const values = formData(settingsForm);
+    values.print_silent = settingsForm.elements.print_silent.checked ? '1' : '0';
+    await call(window.api.saveSettings, values);
     await refreshState();
     fillSettingsForm();
     toast('Settings saved');
@@ -347,7 +353,7 @@ $('[data-confirm]', gaDialog).addEventListener('click', async () => {
 });
 
 // ---------- DESK ----------
-const desk = { donor: null, amount: null, giftAid: null };
+const desk = { donor: null, amount: null, giftAid: null, receipt: null };
 const searchInput = $('#donor-search');
 const resultsList = $('#search-results');
 let searchResults = [];
@@ -365,7 +371,7 @@ function fmtDate(iso) {
 }
 
 function resetDesk() {
-  desk.donor = null; desk.amount = null; desk.giftAid = null;
+  desk.donor = null; desk.amount = null; desk.giftAid = null; desk.receipt = null;
   searchInput.value = '';
   resultsList.hidden = true;
   $('#donor-search-box').hidden = false;
@@ -496,11 +502,53 @@ function renderDesk() {
     : !canGa ? 'No Gift Aid declaration for this donor, so this donation won\'t be Gift Aided.'
     : desk.giftAid === null ? 'Please choose Yes or No.' : '';
 
-  const ready = d && desk.amount && desk.giftAid !== null;
+  // Receipt: Email only if the donor has an email address saved
+  const hasEmail = !!(d && d.email);
+  if (desk.receipt === 'email' && !hasEmail) desk.receipt = null;
+  for (const b of $$('[data-receipt]')) {
+    b.disabled = !d || (b.dataset.receipt === 'email' && !hasEmail);
+    b.classList.toggle('selected', desk.receipt === b.dataset.receipt);
+  }
+  $('#receipt-note').textContent = !d ? 'Choose a donor first.'
+    : desk.receipt === 'email' ? `Will be emailed to ${d.email}. (Email sending is switched on in the next version; until then it waits in the outbox.)`
+    : !hasEmail ? 'Email isn\'t available: no email address saved for this donor.' : '';
+
+  const ready = d && desk.amount && desk.giftAid !== null && desk.receipt;
   $('#save-donation').disabled = !ready;
+  $('#save-donation').textContent = { print: 'Save & print receipt', email: 'Save & email receipt' }[desk.receipt] || 'Save donation';
   $('#desk-summary').textContent = ready
     ? `£${desk.amount} from ${d.name}${desk.giftAid ? ' with Gift Aid' : ''}`
-    : !d ? 'Choose a donor' : !desk.amount ? 'Choose an amount' : 'Choose Gift Aid Yes or No';
+    : !d ? 'Choose a donor' : !desk.amount ? 'Choose an amount'
+    : desk.giftAid === null ? 'Choose Gift Aid Yes or No' : 'Choose a receipt type';
+}
+
+for (const b of $$('[data-receipt]')) {
+  b.addEventListener('click', () => { desk.receipt = b.dataset.receipt; renderDesk(); });
+}
+
+// The last receipt, with a (Re)print button, e.g. if the printer jammed
+let lastReceipt = null;
+function showLastReceipt(r) {
+  lastReceipt = r;
+  const box = $('#last-receipt');
+  if (!r) { box.hidden = true; return; }
+  const how = r.method === 'email'
+    ? `email to ${r.email_to || '(deleted)'}: ${r.email_status}`
+    : r.print_count ? 'printed' : 'not printed yet';
+  box.innerHTML = `<span>Last receipt <b>${String(r.id).padStart(6, '0')}</b>: ${money(r.amount_pence)} from ${escapeHtml(r.donor_name)}
+    <span class="muted">(${escapeHtml(how)})</span></span>
+    <button id="reprint-btn">🖨 ${r.print_count ? 'Reprint' : 'Print'}</button>`;
+  box.hidden = false;
+  $('#reprint-btn').addEventListener('click', () => doPrint(r.id));
+}
+async function doPrint(id) {
+  try {
+    const r = await call(window.api.printReceipt, id);
+    toast(`Receipt ${String(id).padStart(6, '0')} sent to the printer`);
+    showLastReceipt(r);
+  } catch (ex) {
+    toast(ex.message + ' Use the Print button to try again.', true);
+  }
 }
 
 function renderGaStatus(d) {
@@ -544,10 +592,13 @@ async function saveDonation() {
       date: $('#don-date').value,
       note: $('#don-note').value,
       giftAid: desk.giftAid,
+      receipt: desk.receipt,
     });
     toast(`Saved: ${money(res.donation.amount_pence)} from ${res.donor.name}${res.donation.gift_aid ? ' (Gift Aid)' : ''}`);
     resetDesk();
     loadDonors();
+    if (res.receipt) showLastReceipt(res.receipt);
+    if (res.receipt && res.receipt.method === 'print') await doPrint(res.receipt.id);
   } catch (ex) {
     $('#desk-error').textContent = ex.message;
     renderDesk();

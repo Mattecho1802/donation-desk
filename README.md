@@ -12,7 +12,8 @@ Donor data is never stored in this repository. It lives only on the desk PC in
 - [x] Step 1: first-run setup, staff PIN login, auto-lock, editable donor table (sort, filter, GDPR erase)
 - [x] Step 2: desk screen with typo-tolerant search, quick-add donor with duplicate warning, £5/£10/£15/Other, date, note, Gift Aid declarations and per-donation Gift Aid
 - [x] Settings: organisation name, charity number, Gift Aid declaration wording
-- [ ] Step 3: receipts (A4 print / email / none), sequential receipt numbers, email outbox for offline
+- [x] Step 3: receipts (A4 print, reprint, no receipt), sequential receipt numbers, email receipts queued
+- [ ] Step 4: send email receipts, offline outbox with Pending/Sent/Failed
 - [ ] Donations log with void + audit trail, donor history
 - [ ] Staff user management
 - [ ] CSV export, HMRC Gift Aid claim export, one-click backup

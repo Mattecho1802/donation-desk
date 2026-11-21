@@ -5,6 +5,8 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const db = require('./db');
 const Fuse = require('fuse.js');
+const fs = require('fs');
+const { receiptHtml, receiptNo } = require('./receipt');
 
 // UK formats everywhere (e.g. dates as dd/mm/yyyy), whatever the PC's language.
 app.commandLine.appendSwitch('lang', 'en-GB');
@@ -128,6 +130,38 @@ handle('giftaid:cancel', (id) => db.cancelDeclaration(id, currentUser.id));
 
 // --- donations ----------------------------------------------------------
 handle('donations:create', (data) => db.createDonation(data, currentUser.id));
+
+// --- receipts -----------------------------------------------------------
+// Printing loads the receipt into a hidden window and sends it to the printer.
+// Normally the Windows print dialog appears; with "print without asking" on in
+// Settings it goes straight to the default printer.
+// (DONATION_DESK_PRINT_TO_PDF=<folder> saves PDFs instead, for testing.)
+async function printReceipt(id) {
+  const r = db.getReceipt(id);
+  if (!r) throw new Error('Receipt not found.');
+  const pw = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
+  try {
+    await pw.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(receiptHtml(r)));
+    if (process.env.DONATION_DESK_PRINT_TO_PDF) {
+      const pdf = await pw.webContents.printToPDF({ pageSize: 'A4', printBackground: true });
+      fs.mkdirSync(process.env.DONATION_DESK_PRINT_TO_PDF, { recursive: true });
+      fs.writeFileSync(path.join(process.env.DONATION_DESK_PRINT_TO_PDF, `receipt-${receiptNo(id)}.pdf`), pdf);
+    } else {
+      const silent = db.getSettings().print_silent === '1';
+      await new Promise((resolve, reject) => {
+        pw.webContents.print({ silent, printBackground: true, pageSize: 'A4' }, (ok, reason) => {
+          if (ok) resolve();
+          else reject(new Error(reason === 'cancelled' ? 'Printing was cancelled.' : `Printing failed (${reason}). Check the printer is on.`));
+        });
+      });
+    }
+    return db.markPrinted(id, currentUser.id);
+  } finally {
+    pw.destroy();
+  }
+}
+handle('receipts:print', (id) => printReceipt(id));
+handle('receipts:last', () => db.lastReceipts(1)[0] || null);
 
 // --- start --------------------------------------------------------------
 app.whenReady().then(async () => {
