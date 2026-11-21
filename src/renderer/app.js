@@ -97,6 +97,10 @@ setInterval(() => {
 
 function enterApp() {
   $('#user-name').textContent = state.user.name;
+  for (const el of $$('[data-admin-only]')) el.hidden = !state.user.isAdmin;
+  // Always start on the Desk tab after logging in
+  $('.tab[data-tab=desk]').click();
+  fillSettingsForm();
   showScreen('main');
   if (!donorTable) buildDonorTable();
   loadDonors();
@@ -228,12 +232,26 @@ async function confirmErase(donor) {
 }
 
 // ---------- Gift Aid wording ----------
+// The wording is set by an admin on the Settings tab.
 function gaWording() {
-  const org = state.settings.org_name || 'this charity';
-  return `I want to Gift Aid any donations I make in the future or have made in the past 4 years to ${org}. ` +
-    'I am a UK taxpayer and understand that if I pay less Income Tax and/or Capital Gains Tax than the amount ' +
-    'of Gift Aid claimed on all my donations in that tax year it is my responsibility to pay any difference.';
+  return state.settings.ga_declaration;
 }
+
+// ---------- settings tab ----------
+const settingsForm = $('#settings-form');
+function fillSettingsForm() {
+  for (const k of ['org_name', 'charity_number', 'ga_declaration']) settingsForm.elements[k].value = state.settings[k] || '';
+  $('[data-error]', settingsForm).textContent = '';
+}
+settingsForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await call(window.api.saveSettings, formData(settingsForm));
+    await refreshState();
+    fillSettingsForm();
+    toast('Settings saved');
+  } catch (ex) { $('[data-error]', settingsForm).textContent = ex.message; }
+});
 function fillGaWording() {
   for (const el of $$('[data-ga-wording]')) el.textContent = gaWording();
 }

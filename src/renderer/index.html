@@ -14,7 +14,7 @@
     <form id="setup-form" class="card narrow">
       <h1>Welcome to Donation Desk</h1>
       <p class="muted">Let's set things up. You'll be the admin user.</p>
-      <label>Organisation name <input name="orgName" required autocomplete="off"></label>
+      <label>Organisation name <input name="orgName" required autocomplete="off" value="GURDWARA SIRI GURU GOBIND SINGH JI (TELFORD)"></label>
       <label>Your name <input name="userName" required autocomplete="off"></label>
       <label>Choose a PIN (4–8 digits) <input name="pin" type="password" inputmode="numeric" pattern="\d{4,8}" required></label>
       <label>Type the PIN again <input name="pin2" type="password" inputmode="numeric" required></label>
@@ -41,6 +41,7 @@
       <nav>
         <button class="tab active" data-tab="desk">Desk</button>
         <button class="tab" data-tab="donors">Donors</button>
+        <button class="tab" data-tab="settings" data-admin-only>Settings</button>
       </nav>
       <span class="spacer"></span>
       <span class="muted">Logged in as <b id="user-name"></b></span>
@@ -109,6 +110,26 @@
             <button id="save-donation" class="big primary huge">Save donation</button>
           </section>
         </div>
+      </div>
+
+      <!-- SETTINGS (admins only) -->
+      <div id="tab-settings" class="tab-panel" hidden>
+        <form id="settings-form" class="card settings" novalidate>
+          <h2>Settings</h2>
+          <label>Organisation name (shown on receipts)
+            <input name="org_name" autocomplete="off">
+          </label>
+          <label>Charity number
+            <input name="charity_number" inputmode="numeric" autocomplete="off">
+          </label>
+          <label>Gift Aid declaration (staff read this to the donor, word for word)
+            <textarea name="ga_declaration" rows="9"></textarea>
+          </label>
+          <p class="error" data-error></p>
+          <div class="buttons">
+            <button type="submit" class="primary">Save settings</button>
+          </div>
+        </form>
       </div>
 
       <div id="tab-donors" class="tab-panel" hidden>

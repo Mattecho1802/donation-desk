@@ -62,7 +62,7 @@ main { padding: 20px; }
 
 dialog { border: none; border-radius: 12px; padding: 0; width: min(720px, 95vw); }
 dialog::backdrop { background: rgba(16, 24, 40, .45); }
-.grid-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; padding: 24px; }
+.grid-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 24px; }
 .grid-form h2, .grid-form .wide { grid-column: 1 / -1; }
 .buttons { display: flex; justify-content: flex-end; gap: 10px; }
 
@@ -124,3 +124,11 @@ label.check input { width: 20px; height: 20px; }
 .dupes ul { margin: 8px 0; padding-left: 18px; }
 .dupes li { margin: 4px 0; }
 .dupes button { margin-left: 8px; padding: 2px 10px; }
+
+/* ---------- settings ---------- */
+.settings { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+textarea { resize: vertical; line-height: 1.45; }
+.ga-wording { white-space: pre-wrap; font-style: normal; line-height: 1.45; }
+dialog { max-height: 92vh; overflow-x: hidden; }
+dialog input, dialog select, dialog textarea { min-width: 0; width: 100%; }
+dialog label.check input { width: 20px; flex: none; }

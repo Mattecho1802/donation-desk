@@ -1,7 +1,7 @@
 {
   "name": "donation-desk",
   "productName": "Donation Desk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Record in-person donations and issue receipts. Runs offline on one computer.",
   "main": "src/main.js",
   "private": true,

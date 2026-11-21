@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   setup: call('app:setup'),
   login: call('app:login'),
   logout: call('app:logout'),
+  saveSettings: call('settings:save'),
   listDonors: call('donors:list'),
   createDonor: call('donors:create'),
   updateDonor: call('donors:update'),

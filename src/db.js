@@ -167,8 +167,37 @@ function audit(userId, action, details) {
 }
 
 // ---------- settings ----------
+// Used until an admin changes them in Settings.
+const DEFAULT_SETTINGS = {
+  org_name: 'GURDWARA SIRI GURU GOBIND SINGH JI (TELFORD)',
+  charity_number: '1045088',
+  ga_declaration:
+    'If you are a UK taxpayer, the Gurdwara may claim 25% tax back from HMRC through Gift Aid.\n\n' +
+    'I would like SGGSJ Telford, also known as \'Gurdwara - Siri Guru Gobind Singh Ji (Telford)\' ' +
+    '(Charity No: 1045088) to claim back tax through Gift Aid on all my donations that I have made over ' +
+    'the past 4 years and until further notice. I confirm I am a UK taxpayer and understand that if I pay ' +
+    'less Income Tax and/or Capital Gains Tax than the amount of Gift Aid claimed on all my donations in ' +
+    'that tax year, it is my responsibility to pay any difference.',
+};
+const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS);
+
+function saveSettings(values, userId) {
+  const clean = {};
+  for (const k of SETTING_KEYS) clean[k] = String(values[k] ?? '').trim();
+  if (!clean.org_name) throw new Error('Please enter the organisation name.');
+  if (clean.charity_number && !/^\d{6,8}(-\d+)?$/.test(clean.charity_number)) {
+    throw new Error('Charity number should be 6–8 digits, e.g. 1045088.');
+  }
+  if (clean.ga_declaration.length < 50) throw new Error('Please enter the full Gift Aid declaration wording.');
+  return transaction(() => {
+    for (const k of SETTING_KEYS) setSetting(k, clean[k]);
+    audit(userId, 'settings.update', { keys: SETTING_KEYS });
+    return getSettings();
+  });
+}
+
 function getSettings() {
-  const out = {};
+  const out = { ...DEFAULT_SETTINGS };
   for (const r of all('SELECT key, value FROM settings')) out[r.key] = r.value;
   return out;
 }
@@ -380,7 +409,7 @@ function createDonation({ donorId, amount, date, note, giftAid }, userId) {
 }
 
 module.exports = {
-  open, getSettings, setSetting, transaction, audit, today,
+  open, getSettings, setSetting, saveSettings, transaction, audit, today,
   hasUsers, listUsers, createUser, checkLogin,
   listDonors, getDonor, findDuplicates, createDonor, updateDonorField, eraseDonor,
   recordDeclaration, confirmTaxpayer, cancelDeclaration,

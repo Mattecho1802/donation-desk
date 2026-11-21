@@ -92,6 +92,9 @@ handle('app:logout', () => {
   return true;
 }, { open: true });
 
+// --- settings (admins only) ---------------------------------------------
+handle('settings:save', (values) => db.saveSettings(values, currentUser.id), { admin: true });
+
 // --- donors -------------------------------------------------------------
 handle('donors:list', () => db.listDonors());
 handle('donors:create', (data) => db.createDonor(data, currentUser.id));
