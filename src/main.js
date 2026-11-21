@@ -4,6 +4,10 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const db = require('./db');
+const Fuse = require('fuse.js');
+
+// UK formats everywhere (e.g. dates as dd/mm/yyyy), whatever the PC's language.
+app.commandLine.appendSwitch('lang', 'en-GB');
 
 let win = null;
 let currentUser = null; // { id, name, isAdmin } once logged in
@@ -93,6 +97,34 @@ handle('donors:list', () => db.listDonors());
 handle('donors:create', (data) => db.createDonor(data, currentUser.id));
 handle('donors:update', ({ id, field, value }) => db.updateDonorField(id, field, value, currentUser.id));
 handle('donors:erase', (id) => db.eraseDonor(id, currentUser.id), { admin: true });
+handle('donors:duplicates', (data) => db.findDuplicates(data));
+
+// Search-as-you-type: matches partial names and tolerates small typos.
+handle('donors:search', (query) => {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  const fuse = new Fuse(db.listDonors(), {
+    keys: [
+      { name: 'fullName', weight: 3, getFn: (d) => `${d.first_name || ''} ${d.surname || ''}` },
+      { name: 'surname', weight: 2 },
+      { name: 'first_name', weight: 1 },
+      { name: 'postcode', weight: 1 },
+      { name: 'email', weight: 1 },
+      { name: 'phone', weight: 1 },
+    ],
+    threshold: 0.35,
+    ignoreLocation: true,
+  });
+  return fuse.search(q, { limit: 8 }).map((r) => r.item);
+});
+
+// --- Gift Aid -----------------------------------------------------------
+handle('giftaid:declare', (id) => db.recordDeclaration(id, currentUser.id));
+handle('giftaid:confirm', (id) => db.confirmTaxpayer(id, currentUser.id));
+handle('giftaid:cancel', (id) => db.cancelDeclaration(id, currentUser.id));
+
+// --- donations ----------------------------------------------------------
+handle('donations:create', (data) => db.createDonation(data, currentUser.id));
 
 // --- start --------------------------------------------------------------
 app.whenReady().then(async () => {

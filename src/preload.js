@@ -13,4 +13,10 @@ contextBridge.exposeInMainWorld('api', {
   createDonor: call('donors:create'),
   updateDonor: call('donors:update'),
   eraseDonor: call('donors:erase'),
+  findDuplicates: call('donors:duplicates'),
+  searchDonors: call('donors:search'),
+  declareGiftAid: call('giftaid:declare'),
+  confirmGiftAid: call('giftaid:confirm'),
+  cancelGiftAid: call('giftaid:cancel'),
+  createDonation: call('donations:create'),
 });

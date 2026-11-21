@@ -39,7 +39,8 @@
     <header class="topbar">
       <strong data-org-name>Donation Desk</strong>
       <nav>
-        <button class="tab active" data-tab="donors">Donors</button>
+        <button class="tab active" data-tab="desk">Desk</button>
+        <button class="tab" data-tab="donors">Donors</button>
       </nav>
       <span class="spacer"></span>
       <span class="muted">Logged in as <b id="user-name"></b></span>
@@ -47,7 +48,70 @@
     </header>
 
     <main>
-      <div id="tab-donors" class="tab-panel">
+      <!-- DESK: the quick workflow for taking a donation -->
+      <div id="tab-desk" class="tab-panel">
+        <div class="desk">
+          <section class="card desk-step" id="step-donor">
+            <h2><span class="num">1</span> Donor</h2>
+            <div id="donor-search-box">
+              <input id="donor-search" class="search" placeholder="Start typing a name, postcode, email or phone…" autocomplete="off">
+              <ul id="search-results" class="results" hidden></ul>
+              <button id="desk-new-donor" class="big">+ New donor</button>
+            </div>
+            <div id="donor-selected" hidden>
+              <div class="selected-head">
+                <div>
+                  <div class="donor-name" id="sel-name"></div>
+                  <div class="muted" id="sel-details"></div>
+                  <div class="muted" id="sel-totals"></div>
+                </div>
+                <button id="change-donor">Change</button>
+              </div>
+              <div id="ga-status" class="ga-status"></div>
+            </div>
+          </section>
+
+          <section class="card desk-step" id="step-amount">
+            <h2><span class="num">2</span> Amount</h2>
+            <div class="amount-buttons">
+              <button class="amount" data-amount="5">£5</button>
+              <button class="amount" data-amount="10">£10</button>
+              <button class="amount" data-amount="15">£15</button>
+              <button class="amount" data-amount="other">Other</button>
+            </div>
+            <div id="other-amount-box" hidden>
+              <label>Amount (£)
+                <input id="other-amount" inputmode="decimal" placeholder="e.g. 12.50" autocomplete="off">
+              </label>
+            </div>
+            <p class="error" id="amount-error"></p>
+          </section>
+
+          <section class="card desk-step" id="step-details">
+            <h2><span class="num">3</span> Date, note and Gift Aid</h2>
+            <div class="row">
+              <label>Date <input id="don-date" type="date"></label>
+              <label class="grow">Note (optional) <input id="don-note" maxlength="500" autocomplete="off"></label>
+            </div>
+            <div id="ga-choice" class="ga-choice">
+              <div class="ga-label">Gift Aid this donation?</div>
+              <div class="toggle">
+                <button class="big" data-ga="yes">Yes</button>
+                <button class="big" data-ga="no">No</button>
+              </div>
+              <p class="muted small" id="ga-choice-note"></p>
+            </div>
+          </section>
+
+          <section class="desk-save">
+            <div id="desk-summary" class="muted"></div>
+            <p class="error" id="desk-error"></p>
+            <button id="save-donation" class="big primary huge">Save donation</button>
+          </section>
+        </div>
+      </div>
+
+      <div id="tab-donors" class="tab-panel" hidden>
         <div class="toolbar">
           <h2>Donors</h2>
           <span class="muted" id="donor-count"></span>
@@ -74,13 +138,34 @@
       <label>Postcode <input name="postcode" autocomplete="off"></label>
       <label>Email <input name="email" type="email" autocomplete="off"></label>
       <label>Phone <input name="phone" type="tel" autocomplete="off"></label>
+      <div class="wide ga-box">
+        <label class="check"><input type="checkbox" name="gift_aid_declaration">
+          Donor gives a Gift Aid declaration (read this to them):</label>
+        <blockquote class="ga-wording" data-ga-wording></blockquote>
+      </div>
+      <div class="wide dupes" data-dupes hidden></div>
       <p class="error wide" data-error></p>
       <div class="wide buttons">
         <button type="button" data-close>Cancel</button>
-        <button type="submit" class="primary">Save donor</button>
+        <button type="submit" class="primary" data-save>Save donor</button>
       </div>
     </form>
   </dialog>
+  <!-- Take a Gift Aid declaration for an existing donor -->
+  <dialog id="ga-dialog">
+    <form method="dialog" class="pad">
+      <h2>Gift Aid declaration</h2>
+      <p>Read this to <b data-ga-name></b> and check they agree:</p>
+      <blockquote class="ga-wording" data-ga-wording></blockquote>
+      <p class="muted small">Their full name, house number and postcode are needed to claim. The date and your name are recorded.</p>
+      <p class="error" data-error></p>
+      <div class="buttons">
+        <button type="button" data-close>Cancel</button>
+        <button type="button" class="primary" data-confirm>Donor agrees: record declaration</button>
+      </div>
+    </form>
+  </dialog>
+
   <datalist id="salutations">
     <option>Mr</option><option>Mrs</option><option>Ms</option><option>Miss</option><option>Dr</option><option>Mx</option>
   </datalist>
