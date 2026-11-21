@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <title>Donation Desk</title>
+  <link rel="stylesheet" href="../../node_modules/tabulator-tables/dist/css/tabulator_simple.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- First run: create the organisation and the first (admin) user -->
+  <section id="screen-setup" class="screen center" hidden>
+    <form id="setup-form" class="card narrow">
+      <h1>Welcome to Donation Desk</h1>
+      <p class="muted">Let's set things up. You'll be the admin user.</p>
+      <label>Organisation name <input name="orgName" required autocomplete="off"></label>
+      <label>Your name <input name="userName" required autocomplete="off"></label>
+      <label>Choose a PIN (4–8 digits) <input name="pin" type="password" inputmode="numeric" pattern="\d{4,8}" required></label>
+      <label>Type the PIN again <input name="pin2" type="password" inputmode="numeric" required></label>
+      <p class="error" data-error></p>
+      <button class="big primary" type="submit">Finish setup</button>
+    </form>
+  </section>
+
+  <!-- Login -->
+  <section id="screen-login" class="screen center" hidden>
+    <form id="login-form" class="card narrow">
+      <h1 data-org-name>Donation Desk</h1>
+      <label>Who are you? <select name="userId" required></select></label>
+      <label>PIN <input name="pin" type="password" inputmode="numeric" required autofocus></label>
+      <p class="error" data-error></p>
+      <button class="big primary" type="submit">Unlock</button>
+    </form>
+  </section>
+
+  <!-- Main app -->
+  <section id="screen-main" class="screen" hidden>
+    <header class="topbar">
+      <strong data-org-name>Donation Desk</strong>
+      <nav>
+        <button class="tab active" data-tab="donors">Donors</button>
+      </nav>
+      <span class="spacer"></span>
+      <span class="muted">Logged in as <b id="user-name"></b></span>
+      <button id="lock-btn">Lock</button>
+    </header>
+
+    <main>
+      <div id="tab-donors" class="tab-panel">
+        <div class="toolbar">
+          <h2>Donors</h2>
+          <span class="muted" id="donor-count"></span>
+          <span class="spacer"></span>
+          <button id="clear-filters">Clear filters</button>
+          <button id="add-donor-btn" class="primary">+ Add donor</button>
+        </div>
+        <p class="hint">Click a cell to edit it. Click a column heading to sort. Type in the boxes under the headings to filter.</p>
+        <div id="donor-table"></div>
+      </div>
+    </main>
+  </section>
+
+  <!-- Add donor dialog -->
+  <dialog id="donor-dialog">
+    <form id="donor-form" method="dialog" class="grid-form" novalidate>
+      <h2>Add donor</h2>
+      <label>Salutation
+        <input name="salutation" list="salutations" autocomplete="off">
+      </label>
+      <label>First name <input name="first_name" autocomplete="off"></label>
+      <label>Surname <input name="surname" autocomplete="off"></label>
+      <label class="wide">Address <input name="address" autocomplete="off"></label>
+      <label>Postcode <input name="postcode" autocomplete="off"></label>
+      <label>Email <input name="email" type="email" autocomplete="off"></label>
+      <label>Phone <input name="phone" type="tel" autocomplete="off"></label>
+      <p class="error wide" data-error></p>
+      <div class="wide buttons">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">Save donor</button>
+      </div>
+    </form>
+  </dialog>
+  <datalist id="salutations">
+    <option>Mr</option><option>Mrs</option><option>Ms</option><option>Miss</option><option>Dr</option><option>Mx</option>
+  </datalist>
+
+  <div id="toast" hidden></div>
+
+  <script src="../../node_modules/tabulator-tables/dist/js/tabulator.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
